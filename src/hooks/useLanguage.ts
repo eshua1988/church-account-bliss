@@ -174,10 +174,10 @@ export const translations = {
     uk: 'Валюта',
   },
   category: {
-    pl: 'Kategoria',
-    ru: 'Категория',
-    en: 'Category',
-    uk: 'Категорія',
+    pl: 'Nazwa działu',
+    ru: 'Название отдела',
+    en: 'Department name',
+    uk: 'Назва відділу',
   },
   selectCategory: {
     pl: 'Wybierz kategorię',
