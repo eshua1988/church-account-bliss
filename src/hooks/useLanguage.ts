@@ -585,6 +585,18 @@ export const translations = {
     en: 'All departments',
     uk: 'Всі відділи',
   },
+  exportCSV: {
+    pl: 'Eksportuj CSV',
+    ru: 'Экспорт CSV',
+    en: 'Export CSV',
+    uk: 'Експорт CSV',
+  },
+  applyToCategory: {
+    pl: 'Применить к категории',
+    ru: 'Применить к категории',
+    en: 'Apply to category',
+    uk: 'Застосувати до категорії',
+  },
   selectDepartment: {
     pl: 'Wybierz dział',
     ru: 'Выберите отдел',

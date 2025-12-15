@@ -15,7 +15,7 @@ import { useCategories } from '@/hooks/useCategories';
 import { useDepartments } from '@/hooks/useDepartments';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { Currency, CURRENCY_SYMBOLS, Transaction, TransactionType } from '@/types/transaction';
-import { Settings, BarChart3, FileText } from 'lucide-react';
+import { Settings, BarChart3, FileText, Download, Edit3 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   Dialog,
@@ -167,6 +167,48 @@ const Index = () => {
               <FileText className="w-4 h-4 mr-2" />
               Dowód wypłaty
             </Button>
+
+            <Button
+              variant="outline"
+              className="font-semibold"
+              onClick={() => {
+                // Build CSV and download
+                const headers = [
+                  'date', 'type', 'category', 'department', 'amount', 'currency', 'description', 'issuedTo', 'decisionNumber', 'amountInWords', 'cashierName'
+                ];
+
+                const rows = transactions.map(t => {
+                  const dept = t.departmentName || (getCategoryDepartment ? getCategoryDepartment(t.category) : undefined) || '';
+                  return [
+                    new Date(t.date).toISOString(),
+                    t.type,
+                    getCategoryName(t.category),
+                    dept,
+                    t.amount.toFixed(2),
+                    t.currency,
+                    (t.description || '').replace(/\n/g, ' '),
+                    t.issuedTo || '',
+                    t.decisionNumber || '',
+                    t.amountInWords || '',
+                    t.cashierName || '',
+                  ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
+                });
+
+                const csvContent = [headers.join(','), ...rows].join('\n');
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `church_transactions_${new Date().toISOString().split('T')[0]}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                URL.revokeObjectURL(url);
+              }}
+            >
+              <Download className="w-4 h-4 mr-2" />
+              {t('exportCSV')}
+            </Button>
             <Dialog open={isCategoryDialogOpen} onOpenChange={setIsCategoryDialogOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" className="font-semibold"><Settings className="w-4 h-4 mr-2" />{t('settings')}</Button>
@@ -232,7 +274,7 @@ const Index = () => {
               <TabsTrigger value="pie">{t('categoryDistribution')}</TabsTrigger>
             </TabsList>
             <TabsContent value="table">
-              <StatisticsTable transactions={transactions} getCategoryName={getCategoryName} getCategoryDepartment={getCategoryDepartment} onDelete={handleDeleteTransaction} />
+              <StatisticsTable transactions={transactions} getCategoryName={getCategoryName} getCategoryDepartment={getCategoryDepartment} updateTransaction={updateTransaction} updateCategory={updateCategory} onDelete={handleDeleteTransaction} />
             </TabsContent>
             <TabsContent value="bar"><IncomeExpenseBarChart data={monthlyData} /></TabsContent>
             <TabsContent value="line"><BalanceLineChart data={monthlyData} /></TabsContent>

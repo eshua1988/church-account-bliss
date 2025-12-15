@@ -18,14 +18,18 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { TrendingUp, TrendingDown, Trash2 } from 'lucide-react';
+import { TrendingUp, TrendingDown, Trash2, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 
 interface StatisticsTableProps {
   transactions: Transaction[];
   getCategoryName: (id: string) => string;
   getCategoryDepartment?: (id: string) => string | undefined;
+  updateTransaction?: (id: string, updates: Partial<any>) => void;
+  updateCategory?: (id: string, name: string, departmentName?: string) => void;
   onDelete?: (id: string) => void;
 }
 
@@ -112,6 +116,9 @@ export const StatisticsTable = ({ transactions, getCategoryName, onDelete }: Sta
     { value: 'thisYear', label: t('thisYear') },
   ];
 
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingDept, setEditingDept] = useState('');
+  const [applyToCategory, setApplyToCategory] = useState(false);
   const availableDepartments = useMemo(() => {
     const set = new Set<string>();
     transactions.forEach(tx => {
@@ -209,7 +216,29 @@ export const StatisticsTable = ({ transactions, getCategoryName, onDelete }: Sta
                       </span>
                     </TableCell>
                     <TableCell className="whitespace-nowrap">{getCategoryName(transaction.category)}</TableCell>
-                    <TableCell className="whitespace-nowrap">{transaction.departmentName || (getCategoryDepartment ? getCategoryDepartment(transaction.category) : undefined) || '-'}</TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      {editingId === transaction.id ? (
+                        <div className="flex items-center gap-2">
+                          <Input value={editingDept} onChange={(e) => setEditingDept(e.target.value)} className="w-[200px]" />
+                          <Button variant="ghost" size="icon" onClick={() => {
+                            if (updateTransaction) {
+                              updateTransaction(transaction.id, { departmentName: editingDept.trim() || undefined });
+                            }
+                            if (applyToCategory && updateCategory) {
+                              updateCategory(transaction.category, getCategoryName(transaction.category), editingDept.trim() || undefined);
+                            }
+                            setEditingId(null);
+                            setEditingDept('');
+                          }} className="h-8 w-8 text-success hover:text-success hover:bg-success/10"><Check className="w-4 h-4" /></Button>
+                          <Button variant="ghost" size="icon" onClick={() => { setEditingId(null); setEditingDept(''); setApplyToCategory(false); }} className="h-8 w-8 text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></Button>
+                          {updateCategory && <label className="flex items-center gap-2 ml-2 text-sm"><Checkbox checked={applyToCategory} onCheckedChange={(v) => setApplyToCategory(Boolean(v))} />{t('applyToCategory')}</label>}
+                        </div>
+                      ) : (
+                        <div onClick={() => { setEditingId(transaction.id); setEditingDept(transaction.departmentName || (getCategoryDepartment ? getCategoryDepartment(transaction.category) : '') || ''); }} className="cursor-pointer">
+                          {transaction.departmentName || (getCategoryDepartment ? getCategoryDepartment(transaction.category) : undefined) || '-'}
+                        </div>
+                      )}
+                    </TableCell>
                     <TableCell className={cn(
                       'text-right font-semibold whitespace-nowrap',
                       transaction.type === 'income' ? 'text-success' : 'text-destructive'
