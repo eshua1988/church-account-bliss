@@ -579,6 +579,12 @@ export const translations = {
     en: 'Department name',
     uk: 'Назва відділу',
   },
+  allDepartments: {
+    pl: 'Wszystkie działy',
+    ru: 'Все отделы',
+    en: 'All departments',
+    uk: 'Всі відділи',
+  },
   selectDepartment: {
     pl: 'Wybierz dział',
     ru: 'Выберите отдел',

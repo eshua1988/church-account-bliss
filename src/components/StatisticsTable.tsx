@@ -34,6 +34,7 @@ type TimeRange = 'all' | 'thisMonth' | 'lastMonth' | 'last3Months' | 'last6Month
 export const StatisticsTable = ({ transactions, getCategoryName, onDelete }: StatisticsTableProps) => {
   const { t, getDateLocale } = useTranslation();
   const [timeRange, setTimeRange] = useState<TimeRange>('all');
+  const [departmentFilter, setDepartmentFilter] = useState<string | 'all'>('all');
 
   const filteredTransactions = useMemo(() => {
     const now = new Date();
@@ -63,13 +64,27 @@ export const StatisticsTable = ({ transactions, getCategoryName, onDelete }: Sta
         endDate = endOfYear(now);
         break;
       default:
-        return transactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        startDate = null;
+        endDate = null;
     }
 
-    return transactions
-      .filter(t => isWithinInterval(new Date(t.date), { start: startDate!, end: endDate! }))
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [transactions, timeRange]);
+    let result = transactions;
+
+    if (startDate && endDate) {
+      result = transactions.filter(t => isWithinInterval(new Date(t.date), { start: startDate!, end: endDate! }));
+    }
+
+    result = result.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    if (departmentFilter && departmentFilter !== 'all') {
+      result = result.filter(tx => {
+        const dept = tx.departmentName || (getCategoryDepartment ? getCategoryDepartment(tx.category) : undefined);
+        return !!dept && dept === departmentFilter;
+      });
+    }
+
+    return result;
+  }, [transactions, timeRange, departmentFilter, getCategoryDepartment]);
 
   const totals = useMemo(() => {
     const result: Record<string, { income: number; expense: number }> = {};
@@ -97,22 +112,47 @@ export const StatisticsTable = ({ transactions, getCategoryName, onDelete }: Sta
     { value: 'thisYear', label: t('thisYear') },
   ];
 
+  const availableDepartments = useMemo(() => {
+    const set = new Set<string>();
+    transactions.forEach(tx => {
+      const dept = tx.departmentName || (getCategoryDepartment ? getCategoryDepartment(tx.category) : undefined);
+      if (dept && dept.trim()) set.add(dept.trim());
+    });
+    return Array.from(set).sort();
+  }, [transactions, getCategoryDepartment]);
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
         <CardTitle className="text-base font-semibold">{t('transactionsTable')}</CardTitle>
-        <Select value={timeRange} onValueChange={(v) => setTimeRange(v as TimeRange)}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {timeRangeOptions.map(option => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-2">
+          <Select value={timeRange} onValueChange={(v) => setTimeRange(v as TimeRange)}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {timeRangeOptions.map(option => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={departmentFilter} onValueChange={(v) => setDepartmentFilter(v)}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue>
+                {departmentFilter === 'all' ? t('allDepartments') : departmentFilter}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t('allDepartments')}</SelectItem>
+              {availableDepartments.map(dep => (
+                <SelectItem key={dep} value={dep}>{dep}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </CardHeader>
       <CardContent>
         {/* Totals Summary */}
