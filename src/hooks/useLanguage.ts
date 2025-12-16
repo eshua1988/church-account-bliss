@@ -632,6 +632,12 @@ export const translations = {
     en: 'Range',
     uk: 'Період',
   },
+  export: {
+    pl: 'Eksportuj',
+    ru: 'Экспортировать',
+    en: 'Export',
+    uk: 'Експортувати',
+  },
 } as const;
 
 export type TranslationKey = keyof typeof translations;

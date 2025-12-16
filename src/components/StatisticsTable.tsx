@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { Transaction, CURRENCY_SYMBOLS } from '@/types/transaction';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { format, startOfMonth, endOfMonth, subMonths, isWithinInterval, startOfYear, endOfYear } from 'date-fns';
+import jsPDF from 'jspdf';
 import {
   Table,
   TableBody,
@@ -18,9 +19,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { TrendingUp, TrendingDown, Trash2 } from 'lucide-react';
+import { TrendingUp, TrendingDown, Trash2, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import DateRangeFilter from '@/components/DateRangeFilter';
 
 interface StatisticsTableProps {
   transactions: Transaction[];
@@ -33,42 +35,63 @@ type TimeRange = 'all' | 'thisMonth' | 'lastMonth' | 'last3Months' | 'last6Month
 export const StatisticsTable = ({ transactions, getCategoryName, onDelete }: StatisticsTableProps) => {
   const { t, getDateLocale } = useTranslation();
   const [timeRange, setTimeRange] = useState<TimeRange>('all');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'income' | 'expense'>('all');
+  const [customDateRange, setCustomDateRange] = useState<{ from?: Date; to?: Date }>({});
 
   const filteredTransactions = useMemo(() => {
-    const now = new Date();
-    
-    let startDate: Date | null = null;
-    let endDate: Date | null = null;
+    let filtered = transactions;
 
-    switch (timeRange) {
-      case 'thisMonth':
-        startDate = startOfMonth(now);
-        endDate = endOfMonth(now);
-        break;
-      case 'lastMonth':
-        startDate = startOfMonth(subMonths(now, 1));
-        endDate = endOfMonth(subMonths(now, 1));
-        break;
-      case 'last3Months':
-        startDate = startOfMonth(subMonths(now, 2));
-        endDate = endOfMonth(now);
-        break;
-      case 'last6Months':
-        startDate = startOfMonth(subMonths(now, 5));
-        endDate = endOfMonth(now);
-        break;
-      case 'thisYear':
-        startDate = startOfYear(now);
-        endDate = endOfYear(now);
-        break;
-      default:
-        return transactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    // Apply type filter
+    filtered = filtered.filter(t => typeFilter === 'all' || t.type === typeFilter);
+
+    // Apply date filter (custom range takes precedence over timeRange)
+    if (customDateRange.from || customDateRange.to) {
+      filtered = filtered.filter(t => {
+        const txDate = new Date(t.date);
+        if (customDateRange.from && txDate < customDateRange.from) return false;
+        if (customDateRange.to) {
+          const endDate = new Date(customDateRange.to);
+          endDate.setHours(23, 59, 59, 999);
+          if (txDate > endDate) return false;
+        }
+        return true;
+      });
+    } else {
+      // Apply preset timeRange
+      const now = new Date();
+      let startDate: Date | null = null;
+      let endDate: Date | null = null;
+
+      switch (timeRange) {
+        case 'thisMonth':
+          startDate = startOfMonth(now);
+          endDate = endOfMonth(now);
+          break;
+        case 'lastMonth':
+          startDate = startOfMonth(subMonths(now, 1));
+          endDate = endOfMonth(subMonths(now, 1));
+          break;
+        case 'last3Months':
+          startDate = startOfMonth(subMonths(now, 2));
+          endDate = endOfMonth(now);
+          break;
+        case 'last6Months':
+          startDate = startOfMonth(subMonths(now, 5));
+          endDate = endOfMonth(now);
+          break;
+        case 'thisYear':
+          startDate = startOfYear(now);
+          endDate = endOfYear(now);
+          break;
+      }
+
+      if (startDate && endDate) {
+        filtered = filtered.filter(t => isWithinInterval(new Date(t.date), { start: startDate!, end: endDate! }));
+      }
     }
 
-    return transactions
-      .filter(t => isWithinInterval(new Date(t.date), { start: startDate!, end: endDate! }))
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [transactions, timeRange]);
+    return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [transactions, timeRange, typeFilter, customDateRange]);
 
   const totals = useMemo(() => {
     const result: Record<string, { income: number; expense: number }> = {};
@@ -87,6 +110,101 @@ export const StatisticsTable = ({ transactions, getCategoryName, onDelete }: Sta
     return result;
   }, [filteredTransactions]);
 
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 10;
+    let yPosition = 15;
+
+    // Header
+    doc.setFontSize(16);
+    doc.text(t('transactionsTable'), margin, yPosition);
+    yPosition += 10;
+    
+    // Date range info
+    doc.setFontSize(10);
+    const dateInfo = customDateRange.from && customDateRange.to
+      ? `${format(customDateRange.from, 'dd.MM.yyyy')} — ${format(customDateRange.to, 'dd.MM.yyyy')}`
+      : t('allTime');
+    doc.text(`${t('timeRange')}: ${dateInfo}`, margin, yPosition);
+    yPosition += 8;
+    
+    // Type filter info
+    const typeLabel = typeFilter === 'income' ? t('income') : typeFilter === 'expense' ? t('expenses') : t('allTime');
+    doc.text(`${t('type')}: ${typeLabel}`, margin, yPosition);
+    yPosition += 10;
+    
+    // Totals summary
+    doc.setFontSize(11);
+    doc.text('Totals:', margin, yPosition);
+    yPosition += 7;
+    
+    Object.entries(totals).forEach(([currency, { income, expense }]) => {
+      doc.setFontSize(10);
+      doc.text(`${currency}: +${income.toLocaleString()} / -${expense.toLocaleString()}`, margin + 5, yPosition);
+      yPosition += 6;
+    });
+
+    yPosition += 8;
+
+    // Table header
+    const columns = [t('date'), t('type'), t('category'), t('amount'), t('description')];
+    const colWidths = [25, 25, 30, 35, 50];
+    
+    doc.setFillColor(100, 150, 200);
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(10);
+    
+    let xPosition = margin;
+    columns.forEach((col, i) => {
+      doc.text(col, xPosition, yPosition, { maxWidth: colWidths[i] - 1 });
+      xPosition += colWidths[i];
+    });
+    
+    yPosition += 7;
+    doc.setDrawColor(200, 200, 200);
+    doc.line(margin, yPosition, pageWidth - margin, yPosition);
+    yPosition += 3;
+
+    // Table rows
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(9);
+    
+    filteredTransactions.forEach((t) => {
+      const row = [
+        format(new Date(t.date), 'dd.MM.yyyy'),
+        t.type === 'income' ? this.t('income') : this.t('expenses'),
+        getCategoryName(t.category),
+        `${t.type === 'income' ? '+' : '-'}${t.amount.toLocaleString()} ${CURRENCY_SYMBOLS[t.currency]}`,
+        t.description || '-',
+      ];
+
+      let rowHeight = 5;
+      xPosition = margin;
+      
+      row.forEach((cell, i) => {
+        const lines = doc.splitTextToSize(String(cell), colWidths[i] - 2);
+        rowHeight = Math.max(rowHeight, lines.length * 4);
+      });
+
+      if (yPosition + rowHeight > doc.internal.pageSize.getHeight() - 10) {
+        doc.addPage();
+        yPosition = 10;
+      }
+
+      xPosition = margin;
+      row.forEach((cell, i) => {
+        const lines = doc.splitTextToSize(String(cell), colWidths[i] - 2);
+        doc.text(lines, xPosition, yPosition, { maxWidth: colWidths[i] - 2 });
+        xPosition += colWidths[i];
+      });
+
+      yPosition += rowHeight + 2;
+    });
+
+    doc.save(`transactions_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+  };
+
   const timeRangeOptions = [
     { value: 'all', label: t('allTime') },
     { value: 'thisMonth', label: t('thisMonth') },
@@ -98,20 +216,55 @@ export const StatisticsTable = ({ transactions, getCategoryName, onDelete }: Sta
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-        <CardTitle className="text-base font-semibold">{t('transactionsTable')}</CardTitle>
-        <Select value={timeRange} onValueChange={(v) => setTimeRange(v as TimeRange)}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {timeRangeOptions.map(option => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <CardHeader className="flex flex-col space-y-4 pb-4">
+        <div className="flex items-center justify-between gap-2">
+          <CardTitle className="text-base font-semibold">{t('transactionsTable')}</CardTitle>
+          <div className="flex items-center gap-2">
+            <Select value={timeRange} onValueChange={(v) => setTimeRange(v as TimeRange)}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {timeRangeOptions.map(option => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <DateRangeFilter value={customDateRange} onChange={setCustomDateRange} />
+            <Button variant="outline" size="sm" onClick={exportToPDF} className="font-medium">
+              <Download className="w-4 h-4 mr-2" />
+              {t('export') || 'PDF'}
+            </Button>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant={typeFilter === 'all' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setTypeFilter('all')}
+            className="font-medium"
+          >
+            {t('allTime')}
+          </Button>
+          <Button
+            variant={typeFilter === 'income' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setTypeFilter('income')}
+            className="font-medium"
+          >
+            {t('income')}
+          </Button>
+          <Button
+            variant={typeFilter === 'expense' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setTypeFilter('expense')}
+            className="font-medium"
+          >
+            {t('expenses')}
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         {/* Totals Summary */}
