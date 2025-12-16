@@ -19,6 +19,19 @@ const COLORS = [
   'hsl(262.1 83.3% 57.8%)',
 ];
 
+// Deterministic color generator per category name (stable between renders)
+const colorFor = (seed: string) => {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) {
+    hash = seed.charCodeAt(i) + ((hash << 5) - hash);
+    hash = hash & hash; // convert to 32bit int
+  }
+  const h = Math.abs(hash) % 360;
+  const s = 70; // saturation
+  const l = 45; // lightness
+  return `hsl(${h} ${s}% ${l}%)`;
+};
+
 export const CategoryPieChart = ({ data, getCategoryName, type }: CategoryPieChartProps) => {
   const { t } = useTranslation();
 
@@ -67,7 +80,7 @@ export const CategoryPieChart = ({ data, getCategoryName, type }: CategoryPieCha
                   <text 
                     x={x} 
                     y={y} 
-                    fill={COLORS[index % COLORS.length]}
+                    fill={colorFor(name)}
                     textAnchor={x > cx ? 'start' : 'end'} 
                     dominantBaseline="central"
                     className="text-xs font-medium"
@@ -78,10 +91,10 @@ export const CategoryPieChart = ({ data, getCategoryName, type }: CategoryPieCha
               }}
               labelLine={false}
             >
-              {chartData.map((_, index) => (
+              {chartData.map((entry, index) => (
                 <Cell 
                   key={`cell-${index}`} 
-                  fill={COLORS[index % COLORS.length]}
+                  fill={colorFor(entry.name)}
                   className="stroke-background"
                   strokeWidth={2}
                 />
