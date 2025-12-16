@@ -21,9 +21,9 @@ export const translations = {
   },
   appSubtitle: {
     pl: 'ZBÓR CHRZEŚCIJAN BAPTYSTÓW «BOŻA ŁASKA» W WARSZAWIE',
-    ru: 'СОБРАНИЕ ХРИСТИАН-БАПТИСТОВ «БОЖЬЯ БЛАГОДАТЬ» В ВАРШАВЕ',
-    en: 'BAPTIST CHURCH «GOD GRACE» IN WARSAW',
-    uk: 'ЗБОРИ ХРИСТИЯН-БАПТИСТІВ «БОЖА БЛАГОДАТЬ» У ВАРШАВІ',
+    ru: 'Учёт финансов общины',
+    en: 'Community Finance Management',
+    uk: 'Облік фінансів громади',
   },
 
   // Stats
@@ -493,48 +493,7 @@ export const translations = {
     en: 'Expense document details',
     uk: 'Дані документа витрати',
   },
-  payout: {
-    pl: 'Dowód wypłaty',
-    ru: 'Доказ выплаты',
-    en: 'Payout document',
-    uk: 'Документ виплати',
-  },
-  payoutDialogTitle: {
-    pl: 'Dowód wypłaty',
-    ru: 'Документ расхода',
-    en: 'Payout document',
-    uk: 'Документ витрати',
-  },
-  download: {
-    pl: 'Pobierz',
-    ru: 'Скачать',
-    en: 'Download',
-    uk: 'Завантажити',
-  },
-  share: {
-    pl: 'Udostępnij',
-    ru: 'Поделиться',
-    en: 'Share',
-    uk: 'Поділитися',
-  },
-  payoutDownloaded: {
-    pl: 'Dowód pobrany',
-    ru: 'Документ скачан',
-    en: 'Payout downloaded',
-    uk: 'Документ завантажено',
-  },
-  payoutShared: {
-    pl: 'Dowód udostępniony',
-    ru: 'Документ был отправлен',
-    en: 'Payout shared',
-    uk: 'Документ поділено',
-  },
-  payoutCopied: {
-    pl: 'Dane skopiowane do schowka',
-    ru: 'Данные скопированы в буфер',
-    en: 'Payout details copied to clipboard',
-    uk: 'Дані скопійовано в буфер',
-  },
+  
   // Statistics table
   allTime: {
     pl: 'Cały okres',
