@@ -4,7 +4,6 @@ import { TransactionForm } from '@/components/TransactionForm';
 import { CurrencyBalanceCard } from '@/components/CurrencyBalanceCard';
 import { CurrencySelector } from '@/components/CurrencySelector';
 import { CategoryManager } from '@/components/CategoryManager';
-import { UndoRedoControls } from '@/components/UndoRedoControls';
 import { loadVisibleCurrencies, saveVisibleCurrencies, CurrencySettingsContent } from '@/components/CurrencySettingsDialog';
 import { CategoryPieChart } from '@/components/charts/CategoryPieChart';
 import { BalanceLineChart } from '@/components/charts/BalanceLineChart';
@@ -148,13 +147,12 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header />
+      <Header canUndo={canUndo} canRedo={canRedo} onUndo={handleUndo} onRedo={handleRedo} />
       
       <main className="container mx-auto px-4 py-8">
         {/* Controls Row */}
         <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <UndoRedoControls canUndo={canUndo} canRedo={canRedo} onUndo={handleUndo} onRedo={handleRedo} />
             <CurrencySelector value={selectedCurrency} onChange={setSelectedCurrency} className="w-[180px]" />
           </div>
           <div className="flex items-center gap-2 flex-wrap">
