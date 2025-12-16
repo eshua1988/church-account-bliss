@@ -82,6 +82,15 @@ export const DateRangeFilter = ({ value, onChange }: DateRangeFilterProps) => {
               setLocalRange({ from: d, to: d });
             }
           }}
+          onDayClick={(date: Date, modifiers: any, e?: MouseEvent) => {
+            // If user double-clicked a date, treat it as single-date selection and apply
+            if ((e as any)?.detail === 2) {
+              const d = date as Date;
+              setLocalRange({ from: d, to: d });
+              onChange({ from: d, to: d });
+              setOpen(false);
+            }
+          }}
         />
         <div className="mt-3 flex justify-end gap-2">
           <Button variant="ghost" onClick={() => { setLocalRange({}); onChange({}); setOpen(false); }}>
