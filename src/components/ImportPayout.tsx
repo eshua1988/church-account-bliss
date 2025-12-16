@@ -23,15 +23,67 @@ const currencyBySymbol: Record<string, string> = {
   '₴': 'UAH',
 };
 
+// Simple heuristic language detection (pl/ru/en/uk)
+const detectLanguage = (text: string): 'pl' | 'ru' | 'en' | 'uk' => {
+  const s = text.toLowerCase();
+  const scores: Record<string, number> = { pl: 0, ru: 0, en: 0, uk: 0 };
+  const tokens: Record<string, string[]> = {
+    pl: ['kwota', 'wydano', 'na podstawie', 'zł', 'wydat'],
+    ru: ['сумма', 'выдано', 'на основании', '₽', 'расход'],
+    en: ['amount', 'issued to', 'basis', 'purpose', '$', 'expense'],
+    uk: ['сума', 'видано', 'підстава', '₴', 'витрат'],
+  };
+  for (const lang of Object.keys(tokens)) {
+    for (const tkn of tokens[lang]) {
+      if (s.includes(tkn)) scores[lang]++;
+    }
+  }
+  // Pick highest score, default to 'pl' if tie/zero (since many PDFs are Polish in this app)
+  const best = (Object.keys(scores) as Array<keyof typeof scores>).reduce((a, b) => (scores[a] >= scores[b] ? a : b));
+  return best as 'pl' | 'ru' | 'en' | 'uk';
+};
+
 const tryExtract = (text: string) => {
   const res: Partial<Record<'date'|'amount'|'currency'|'issuedTo'|'description', string>> = {};
+  const lang = detectLanguage(text);
 
   // Date YYYY-MM-DD
-  const dateMatch = text.match(/\b(\d{4}-\d{2}-\d{2})\b/);
-  if (dateMatch) res.date = dateMatch[1];
+  const dateMatch = text.match(/\b(\d{4}-\d{2}-\d{2})\b/)
+    || text.match(/\b(\d{2}\.\d{2}\.\d{4})\b/); // accept dd.mm.yyyy too
+  if (dateMatch) {
+    const d = dateMatch[1];
+    // convert dd.mm.yyyy to yyyy-mm-dd
+    if (/\d{2}\.\d{2}\.\d{4}/.test(d)) {
+      const [dd, mm, yyyy] = d.split('.');
+      res.date = `${yyyy}-${mm}-${dd}`;
+    } else {
+      res.date = d;
+    }
+  }
+
+  // Build language-aware keywords
+  const amountKeywords = {
+    pl: ['Kwota', 'kwota'],
+    ru: ['Сумма', 'сумма'],
+    en: ['Amount', 'amount'],
+    uk: ['Сума', 'сума'],
+  } as const;
+  const issuedKeywords = {
+    pl: ['Wydano', 'wydano'],
+    ru: ['Выдано', 'выдано'],
+    en: ['Issued to', 'issued to'],
+    uk: ['Видано', 'видано', 'Виданo'],
+  } as const;
+  const descKeywords = {
+    pl: ['Na podstawie', 'Opis', 'na podstawie', 'opis'],
+    ru: ['На основании', 'Назначение', 'на основании', 'назначение'],
+    en: ['Basis', 'Purpose', 'Description', 'basis', 'purpose', 'description'],
+    uk: ['Підстава', 'Призначення', 'підстава', 'призначення'],
+  } as const;
 
   // Amount with optional currency code or symbol
-  const amountMatch = text.match(/(?:Kwota|Amount)[:\s]*([0-9]+[\.,]?[0-9]{0,2})\s*(PLN|USD|EUR|UAH|BYN|RUB|zł|€|\$|₽)?/i)
+  const amountRegex = new RegExp(`(?:${amountKeywords[lang].join('|')})[:\\s]*([0-9]+[\\.,]?[0-9]{0,2})\\s*(PLN|USD|EUR|UAH|BYN|RUB|zł|€|\\$|₽)?`, 'i');
+  const amountMatch = text.match(amountRegex)
     || text.match(/([0-9]+[\.,][0-9]{2})\s*(PLN|USD|EUR|UAH|BYN|RUB|zł|€|\$|₽)/i)
     || text.match(/([0-9]+[\.,]?[0-9]{0,2})/);
   if (amountMatch) {
@@ -42,12 +94,14 @@ const tryExtract = (text: string) => {
     }
   }
 
-  // Issued to (Wydano / Issued to / Выдано)
-  const issuedMatch = text.match(/(?:Wydano|Issued to|Выдано)[:\s\-]*([A-ZА-ЯЁІЇЄ0-9A-Za-ząćęłńóśżźА-Яа-яёЁ\-\s\.\,]{2,80})/i);
+  // Issued to
+  const issuedRegex = new RegExp(`(?:${issuedKeywords[lang].join('|')})[:\\s\-]*([A-ZА-ЯЁІЇЄ0-9A-Za-ząćęłńóśżźА-Яа-яёЁ\-\\s\\.\\,]{2,120})`, 'i');
+  const issuedMatch = text.match(issuedRegex);
   if (issuedMatch) res.issuedTo = issuedMatch[1].trim();
 
-  // Description: try to find 'Na podstawie' or 'Basis' or 'Description' context
-  const descMatch = text.match(/(?:Na podstawie|Basis|Purpose|Opis)[:\s\-]*([\s\S]{2,120})/i);
+  // Description
+  const descRegex = new RegExp(`(?:${descKeywords[lang].join('|')})[:\\s\-]*([\\s\\S]{2,200})`, 'i');
+  const descMatch = text.match(descRegex);
   if (descMatch) res.description = descMatch[1].trim().split('\n')[0];
 
   return res;
