@@ -4,11 +4,10 @@ import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useCategories } from '@/hooks/useCategories';
 import { useTransactionsWithHistory } from '@/hooks/useTransactionsWithHistory';
-import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf';
+import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist/legacy/build/pdf';
 
 // Ensure worker is available (cdn fallback)
-(pdfjsLib as any).GlobalWorkerOptions = (pdfjsLib as any).GlobalWorkerOptions || {};
-(pdfjsLib as any).GlobalWorkerOptions.workerSrc = (pdfjsLib as any).GlobalWorkerOptions.workerSrc || 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+GlobalWorkerOptions.workerSrc = GlobalWorkerOptions.workerSrc || 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
 const currencyBySymbol: Record<string, string> = {
   'zł': 'PLN',
@@ -62,7 +61,7 @@ export const ImportPayout = () => {
     setLoading(true);
     try {
       const arrayBuffer = await file.arrayBuffer();
-      const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+      const loadingTask = getDocument({ data: arrayBuffer });
       const pdf = await loadingTask.promise;
       let fullText = '';
       const pagesToRead = Math.min(pdf.numPages, 3);
