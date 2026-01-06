@@ -28,6 +28,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { AppSidebar } from '@/components/AppSidebar';
+import { GoogleSheetsSync } from '@/components/GoogleSheetsSync';
 
 const currencies: Currency[] = ['RUB', 'USD', 'EUR', 'UAH', 'BYN', 'PLN'];
 
@@ -240,6 +241,10 @@ const Index = () => {
                   onUpdate={handleUpdateCategory}
                   onReorder={handleReorderCategories}
                 />
+              </div>
+              <Separator />
+              <div className="bg-card rounded-lg p-6 shadow-card">
+                <GoogleSheetsSync transactions={transactions} getCategoryName={getCategoryName} />
               </div>
             </div>
           )}
